@@ -5,97 +5,103 @@ from simple_pid import PID
 import rtde_control
 import rtde_receive
 
-# UR3e Connection
-ROBOT_IP = "192.168.1.1"
-rtde_c = rtde_control.RTDEControlInterface(ROBOT_IP)
-rtde_r = rtde_receive.RTDEReceiveInterface(ROBOT_IP)
+# UR3e Connection Setup
+ROBOT_IP = "192.168.1.1"  # IP address of the robot
+rtde_c = rtde_control.RTDEControlInterface(ROBOT_IP)  # Control interface for sending commands
+rtde_r = rtde_receive.RTDEReceiveInterface(ROBOT_IP)  # Receive interface for getting feedback
 
 # Control Parameters
-ACCELERATION = 0.8
-SPEED = 0.3
-DURATION = 12  # seconds
-CONTROL_FREQUENCY = 20  # Hz
-CONTROL_INTERVAL = 1.0 / CONTROL_FREQUENCY
+ACCELERATION = 0.8  # Acceleration value for robot movements
+SPEED = 0.3  # Speed of robot movements
+DURATION = 12  # Duration of the motion (in seconds)
+CONTROL_FREQUENCY = 20  # Control frequency (20 Hz means 20 times per second)
+CONTROL_INTERVAL = 1.0 / CONTROL_FREQUENCY  # Interval between control loops (in seconds)
 
-# Starting joint configuration
+# Starting joint configuration (convert degrees to radians)
 START_POSITION_RAD = [
-    math.radians(261.15),
-    math.radians(-19.99),
-    math.radians(10.00),
-    math.radians(0),
-    math.radians(90),
-    math.radians(0)
+    math.radians(261.15),  # Joint 1
+    math.radians(-19.99),  # Joint 2
+    math.radians(10.00),   # Joint 3
+    math.radians(0),       # Joint 4 (fixed)
+    math.radians(90),      # Joint 5
+    math.radians(0)        # Joint 6 (fixed)
 ]
 
-# Amplitudes
-AMPLITUDE_J1 = math.radians(4.0)  # wider sweep
-AMPLITUDE_J2 = math.radians(3.0)
-AMPLITUDE_J3 = math.radians(3.0)
-AMPLITUDE_J5 = math.radians(1.5)
+# Amplitude for each joint's oscillation (in radians)
+AMPLITUDE_J1 = math.radians(4.0)  # Amplitude for Joint 1 (wider sweep)
+AMPLITUDE_J2 = math.radians(3.0)  # Amplitude for Joint 2
+AMPLITUDE_J3 = math.radians(3.0)  # Amplitude for Joint 3
+AMPLITUDE_J5 = math.radians(1.5)  # Amplitude for Joint 5
 
-# PID Controllers
-pid_j1 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))
-pid_j2 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))
-pid_j3 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))
-pid_j5 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))
+# PID Controllers for each joint to control their movements
+pid_j1 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))  # PID controller for Joint 1
+pid_j2 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))  # PID controller for Joint 2
+pid_j3 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))  # PID controller for Joint 3
+pid_j5 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))  # PID controller for Joint 5
 
-# Move to start
+# Move the robot to the starting position
 print("Moving to start position...")
-rtde_c.moveJ(START_POSITION_RAD, SPEED, ACCELERATION)
-time.sleep(1)
+rtde_c.moveJ(START_POSITION_RAD, SPEED, ACCELERATION)  # Move the robot to the starting joint positions
+time.sleep(1)  # Wait for the robot to reach the starting position
 
-motion_data = []
-power_data = []
-tcp_trace = []
+# Data containers to store motion, power, and TCP trace data for analysis
+motion_data = []  # List to store joint positions, velocities, and TCP poses
+power_data = []   # List to store joint currents (for power consumption analysis)
+tcp_trace = []    # List to store TCP (Tool Center Point) positions over time
 
+# Begin executing the figure-eight trajectory
 print("Executing PID-controlled figure-eight motion...")
-start_time = time.time()
-while time.time() - start_time < DURATION:
-    t = time.time() - start_time
+start_time = time.time()  # Record the start time of the motion loop
+while time.time() - start_time < DURATION:  # Continue the loop for the specified duration
+    t = time.time() - start_time  # Get the elapsed time
 
-    current_joints = rtde_r.getActualQ()
-    joint_velocities = rtde_r.getActualQd()
-    joint_currents = rtde_r.getActualCurrent()
-    tcp_pose = rtde_r.getActualTCPPose()
+    # Get feedback from the robot: joint positions, velocities, currents, and TCP pose
+    current_joints = rtde_r.getActualQ()  # Current joint positions
+    joint_velocities = rtde_r.getActualQd()  # Current joint velocities
+    joint_currents = rtde_r.getActualCurrent()  # Current joint currents (for power analysis)
+    tcp_pose = rtde_r.getActualTCPPose()  # Current Tool Center Point (TCP) pose
 
-    # Figure-eight pattern in joint space
-    target_j1 = START_POSITION_RAD[0] + AMPLITUDE_J1 * math.sin(2 * math.pi * 0.25 * t)
-    target_j2 = START_POSITION_RAD[1] + AMPLITUDE_J2 * math.sin(2 * math.pi * 0.5 * t)
-    target_j3 = START_POSITION_RAD[2] + AMPLITUDE_J3 * math.sin(4 * math.pi * 0.5 * t)
-    target_j5 = START_POSITION_RAD[4] + AMPLITUDE_J5 * math.cos(2 * math.pi * 0.4 * t)
+    # Define the target joint positions using sine and cosine for the figure-eight pattern
+    target_j1 = START_POSITION_RAD[0] + AMPLITUDE_J1 * math.sin(2 * math.pi * 0.25 * t)  # Joint 1 (figure-eight oscillation)
+    target_j2 = START_POSITION_RAD[1] + AMPLITUDE_J2 * math.sin(2 * math.pi * 0.5 * t)   # Joint 2 (figure-eight oscillation)
+    target_j3 = START_POSITION_RAD[2] + AMPLITUDE_J3 * math.sin(4 * math.pi * 0.5 * t)   # Joint 3 (figure-eight oscillation)
+    target_j5 = START_POSITION_RAD[4] + AMPLITUDE_J5 * math.cos(2 * math.pi * 0.4 * t)   # Joint 5 (figure-eight oscillation)
 
-    # PID corrections
-    j1_correction = pid_j1(current_joints[0] - target_j1)
-    j2_correction = pid_j2(current_joints[1] - target_j2)
-    j3_correction = pid_j3(current_joints[2] - target_j3)
-    j5_correction = pid_j5(current_joints[4] - target_j5)
+    # Apply PID corrections to maintain smooth motion and accurate trajectory
+    j1_correction = pid_j1(current_joints[0] - target_j1)  # PID correction for Joint 1
+    j2_correction = pid_j2(current_joints[1] - target_j2)  # PID correction for Joint 2
+    j3_correction = pid_j3(current_joints[2] - target_j3)  # PID correction for Joint 3
+    j5_correction = pid_j5(current_joints[4] - target_j5)  # PID correction for Joint 5
 
+    # Apply the PID corrections to the target joint positions
     corrected_joints = [
-        target_j1 - j1_correction,
-        target_j2 - j2_correction,
-        target_j3 - j3_correction,
-        START_POSITION_RAD[3],
-        target_j5 - j5_correction,
-        START_POSITION_RAD[5]
+        target_j1 - j1_correction,  # Corrected position for Joint 1
+        target_j2 - j2_correction,  # Corrected position for Joint 2
+        target_j3 - j3_correction,  # Corrected position for Joint 3
+        START_POSITION_RAD[3],      # Joint 4 remains stationary (fixed)
+        target_j5 - j5_correction,  # Corrected position for Joint 5
+        START_POSITION_RAD[5]      # Joint 6 remains stationary (fixed)
     ]
 
+    # Send the corrected joint positions to the robot using servoJ command
     rtde_c.servoJ(corrected_joints, SPEED, ACCELERATION, CONTROL_INTERVAL, 0.05, 300)
 
-    timestamp = time.time() - start_time
-    motion_data.append([timestamp] + current_joints + joint_velocities + tcp_pose)
-    power_data.append([timestamp] + joint_currents)
-    tcp_trace.append([timestamp] + tcp_pose)
+    # Collect data for analysis (timestamp, joint positions, velocities, and TCP pose)
+    timestamp = time.time() - start_time  # Record the current time for data logging
+    motion_data.append([timestamp] + current_joints + joint_velocities + tcp_pose)  # Append motion data
+    power_data.append([timestamp] + joint_currents)  # Append power (current) data
+    tcp_trace.append([timestamp] + tcp_pose)  # Append TCP trace data
 
-    time.sleep(CONTROL_INTERVAL)
+    time.sleep(CONTROL_INTERVAL)  # Wait for the next control interval
 
-# Finish motion
+# End motion and return the robot to its starting position
 print("Motion complete. Returning to start position...")
-rtde_c.moveJ(START_POSITION_RAD, SPEED, ACCELERATION)
-rtde_c.stopScript()
+rtde_c.moveJ(START_POSITION_RAD, SPEED, ACCELERATION)  # Move back to the starting position
+rtde_c.stopScript()  # Stop the current script running on the robot
 
-# Save data
-scipy.io.savemat("figure8_motion_data.mat", {"motion_data": motion_data})
-scipy.io.savemat("figure8_power_data.mat", {"power_data": power_data})
-scipy.io.savemat("figure8_tcp_trace.mat", {"tcp_trace": tcp_trace})
-print("Data saved successfully.")
+# Save the collected motion, power, and TCP trace data to MATLAB .mat files for further analysis
+scipy.io.savemat("figure8_motion_data.mat", {"motion_data": motion_data})  # Save motion data to .mat file
+scipy.io.savemat("figure8_power_data.mat", {"power_data": power_data})  # Save power data to .mat file
+scipy.io.savemat("figure8_tcp_trace.mat", {"tcp_trace": tcp_trace})  # Save TCP trace data to .mat file
 
+print("Data saved successfully.")  # Confirm that the data has been saved
