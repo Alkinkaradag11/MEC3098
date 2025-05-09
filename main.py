@@ -16,7 +16,7 @@ DURATION = 10  # seconds
 CONTROL_FREQUENCY = 20  # Hz
 CONTROL_INTERVAL = 1.0 / CONTROL_FREQUENCY
 
-# Start joint positions (radians)
+# Starting joint positions (in radians, converted from degrees)
 START_POSITION_RAD = [
     math.radians(261.15),
     math.radians(-19.99),
@@ -40,10 +40,10 @@ pid_j5 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))
 
 # Move to start
 print("Moving to start position...")
-rtde_c.moveJ(START_POSITION_RAD, SPEED, ACCELERATION)
-time.sleep(1)
+rtde_c.moveJ(START_POSITION_RAD, SPEED, ACCELERATION)# Move robot to the initial positions
+time.sleep(1) # Wait for the robot to reach the starting position
 
-# Data storage
+# Data containers to store motion, power, and TCP trace data for analysis
 motion_data = []
 power_data = []
 tcp_trace = []
@@ -70,6 +70,7 @@ while time.time() - start_time < DURATION:
     j3_correction = pid_j3(current_joints[2] - target_j3)
     j5_correction = pid_j5(current_joints[4] - target_j5)
 
+    # Apply PID corrections to the target positions for each joint
     corrected_joints = [
         target_j1 - j1_correction,
         target_j2 - j2_correction,
