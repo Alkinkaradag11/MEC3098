@@ -72,21 +72,22 @@ j2_correction = pid_j2(current_joints[1] - target_j2)
 j3_correction = pid_j3(current_joints[2] - target_j3)
 j5_correction = pid_j5(current_joints[4] - target_j5)
 
-    corrected_joints = [
-        target_j1 - j1_correction,
-        target_j2 - j2_correction,
-        target_j3 - j3_correction,
-        START_POSITION_RAD[3],
-        target_j5 - j5_correction,
-        START_POSITION_RAD[5]
+# Apply the corrections to calculate the corrected joint positions
+corrected_joints = [
+target_j1 - j1_correction,  # Corrected position for Joint 1
+target_j2 - j2_correction,  # Corrected position for Joint 2
+target_j3 - j3_correction,  # Corrected position for Joint 3
+START_POSITION_RAD[3],  # Joint 4 remains stationary
+target_j5 - j5_correction,  # Corrected position for Joint 5
+START_POSITION_RAD[5]  # Joint 6 remains stationary
     ]
-
+ # Send the corrected joint positions to the robot using servoJ control
     rtde_c.servoJ(corrected_joints, SPEED, ACCELERATION, CONTROL_INTERVAL, 0.05, 300)
-
-    timestamp = time.time() - start_time
-    motion_data.append([timestamp] + current_joints + joint_velocities + tcp_pose)
-    power_data.append([timestamp] + joint_currents)
-    tcp_trace.append([timestamp] + tcp_pose)
+# Store data for analysis
+timestamp = time.time() - start_time
+motion_data.append([timestamp] + current_joints + joint_velocities + tcp_pose)
+power_data.append([timestamp] + joint_currents)
+tcp_trace.append([timestamp] + tcp_pose)
 
     time.sleep(CONTROL_INTERVAL)
 
