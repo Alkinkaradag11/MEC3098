@@ -5,18 +5,19 @@ from simple_pid import PID
 import rtde_control
 import rtde_receive
 
-# UR3e Configuration
+# UR3e Configuration: Set the robot IP address and create control and receive interfaces for communication
 ROBOT_IP = "192.168.1.1"
 rtde_c = rtde_control.RTDEControlInterface(ROBOT_IP)
 rtde_r = rtde_receive.RTDEReceiveInterface(ROBOT_IP)
 
+# Robot movement settings: Define acceleration, speed, duration, and control frequenc
 ACCELERATION = 0.8
 SPEED = 0.3
 DURATION = 10  # in seconds
 CONTROL_FREQUENCY = 20  # Hz
 CONTROL_INTERVAL = 1.0 / CONTROL_FREQUENCY
 
-# Starting position (in radians)
+# Starting position of the robot in radians (converted from degrees)
 START_POSITION_RAD = [
     math.radians(261.15),
     math.radians(-19.99),
@@ -26,13 +27,13 @@ START_POSITION_RAD = [
     math.radians(0)
 ]
 
-# Oscillation amplitude (in radians)
+# Oscillation amplitude for each joint (in radians)
 AMPLITUDE_J1 = math.radians(2.0)
 AMPLITUDE_J2 = math.radians(1.5)
 AMPLITUDE_J3 = math.radians(2.0)
 AMPLITUDE_J5 = math.radians(1.0)
 
-# PID controllers with output limits
+# Initialize PID controllers for joint with output limits
 pid_j1 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))
 pid_j2 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))
 pid_j3 = PID(0.4, 0.01, 0.02, setpoint=0, output_limits=(-0.05, 0.05))
@@ -47,25 +48,29 @@ motion_data = []
 power_data = []
 tcp_trace = []
 
+# Start the motion loop for the defined duration
 print("Starting servoJ-controlled motion loop...")
 start_time = time.time()
 while time.time() - start_time < DURATION:
     t = time.time() - start_time
 
-    current_joints = rtde_r.getActualQ()
-    joint_velocities = rtde_r.getActualQd()
-    joint_currents = rtde_r.getActualCurrent()
-    tcp_pose = rtde_r.getActualTCPPose()
+# Get the current joint positions, velocities, currents, and TCP pose
+current_joints = rtde_r.getActualQ()
+joint_velocities = rtde_r.getActualQd()
+joint_currents = rtde_r.getActualCurrent()
+tcp_pose = rtde_r.getActualTCPPose()
 
-    target_j1 = START_POSITION_RAD[0] + AMPLITUDE_J1 * math.sin(2 * math.pi * 0.5 * t)
-    target_j2 = START_POSITION_RAD[1] + AMPLITUDE_J2 * math.sin(2 * math.pi * 0.4 * t)
-    target_j3 = START_POSITION_RAD[2] + AMPLITUDE_J3 * math.sin(2 * math.pi * 0.6 * t)
-    target_j5 = START_POSITION_RAD[4] + AMPLITUDE_J5 * math.sin(2 * math.pi * 0.7 * t)
+# Define the target joint positions using sinusoidal oscillation
+target_j1 = START_POSITION_RAD[0] + AMPLITUDE_J1 * math.sin(2 * math.pi * 0.5 * t)
+target_j2 = START_POSITION_RAD[1] + AMPLITUDE_J2 * math.sin(2 * math.pi * 0.4 * t)
+target_j3 = START_POSITION_RAD[2] + AMPLITUDE_J3 * math.sin(2 * math.pi * 0.6 * t)
+target_j5 = START_POSITION_RAD[4] + AMPLITUDE_J5 * math.sin(2 * math.pi * 0.7 * t)
 
-    j1_correction = pid_j1(current_joints[0] - target_j1)
-    j2_correction = pid_j2(current_joints[1] - target_j2)
-    j3_correction = pid_j3(current_joints[2] - target_j3)
-    j5_correction = pid_j5(current_joints[4] - target_j5)
+# Use PID controllers to calculate the correction for each joint's position
+j1_correction = pid_j1(current_joints[0] - target_j1)
+j2_correction = pid_j2(current_joints[1] - target_j2)
+j3_correction = pid_j3(current_joints[2] - target_j3)
+j5_correction = pid_j5(current_joints[4] - target_j5)
 
     corrected_joints = [
         target_j1 - j1_correction,
